@@ -6,7 +6,7 @@
 " The file must have the extension of one of the ciphers used by OpenSSL. For
 " example:
 "
-"    .des3 .aes .bf .bfa .idea .cast .rc2 .rc4 .rc5 (.bfa is base64 ASCII
+"    .des3 .aes .aesa .bf .bfa .idea .cast .rc2 .rc4 .rc5 (.bfa is base64 ASCII
 "    encoded blowfish.)
 "
 " This will turn off the swap file and the .viminfo log. The `openssl` command
@@ -97,14 +97,18 @@ endfunction
 
 function! s:OpenSSLReadPost()
     let l:cipher = expand("%:e")
-    if l:cipher == "aes"
+    let l:armour = ""
+    if l:cipher == "aesa"
+        let l:armour = "-a"
+    endif
+    if l:cipher == "aes" || l:cipher == "aesa"
         let l:cipher = "aes-256-cbc"
     endif
     if l:cipher == "bfa"
         let l:cipher = "bf"
-        let l:expr = "0,$!openssl " . l:cipher . " -d -a -salt"
+        let l:expr = "0,$!openssl " . l:cipher . " -d -md sha256 -pbkdf2 -a -salt"
     else
-        let l:expr = "0,$!openssl " . l:cipher . " -d -salt"
+        let l:expr = "0,$!openssl " . l:cipher . " -d -md sha256 -pbkdf2 " . l:armour . " -salt"
     endif
 
     silent! execute l:expr
@@ -138,15 +142,19 @@ function! s:OpenSSLWritePre()
         silent! execute '!cp % %:r.bak.%:e'
     endif
 
-    let l:cipher = expand("<afile>:e") 
-    if l:cipher == "aes"
+    let l:cipher = expand("<afile>:e")
+    let l:armour = " "
+    if l:cipher == "aesa"
+        let l:armour = "-a"
+    endif
+    if l:cipher == "aes" || l:cipher == "aesa"
         let l:cipher = "aes-256-cbc"
     endif
     if l:cipher == "bfa"
         let l:cipher = "bf"
         let l:expr = "0,$!openssl " . l:cipher . " -e -a -salt"
     else
-        let l:expr = "0,$!openssl " . l:cipher . " -e -salt"
+        let l:expr = "0,$!openssl " . l:cipher . " -e -md sha256 -pbkdf2 " . l:armour . " -salt"
     endif
 
     silent! execute l:expr
@@ -171,10 +179,10 @@ function! s:OpenSSLWritePost()
     redraw!
 endfunction
 
-autocmd BufReadPre,FileReadPre     *.des3,*.des,*.bf,*.bfa,*.aes,*.idea,*.cast,*.rc2,*.rc4,*.rc5,*.desx call s:OpenSSLReadPre()
-autocmd BufReadPost,FileReadPost   *.des3,*.des,*.bf,*.bfa,*.aes,*.idea,*.cast,*.rc2,*.rc4,*.rc5,*.desx call s:OpenSSLReadPost()
-autocmd BufWritePre,FileWritePre   *.des3,*.des,*.bf,*.bfa,*.aes,*.idea,*.cast,*.rc2,*.rc4,*.rc5,*.desx call s:OpenSSLWritePre()
-autocmd BufWritePost,FileWritePost *.des3,*.des,*.bf,*.bfa,*.aes,*.idea,*.cast,*.rc2,*.rc4,*.rc5,*.desx call s:OpenSSLWritePost()
+autocmd BufReadPre,FileReadPre     *.des3,*.des,*.bf,*.bfa,*.aes,*.aesa,*.idea,*.cast,*.rc2,*.rc4,*.rc5,*.desx call s:OpenSSLReadPre()
+autocmd BufReadPost,FileReadPost   *.des3,*.des,*.bf,*.bfa,*.aes,*.aesa,*.idea,*.cast,*.rc2,*.rc4,*.rc5,*.desx call s:OpenSSLReadPost()
+autocmd BufWritePre,FileWritePre   *.des3,*.des,*.bf,*.bfa,*.aes,*.aesa,*.idea,*.cast,*.rc2,*.rc4,*.rc5,*.desx call s:OpenSSLWritePre()
+autocmd BufWritePost,FileWritePost *.des3,*.des,*.bf,*.bfa,*.aes,*.aesa,*.idea,*.cast,*.rc2,*.rc4,*.rc5,*.desx call s:OpenSSLWritePost()
 
 " The following implements a simple password safe for any file named
 " '.auth.bfa'. The file is encrypted with Blowfish and base64 encoded.
@@ -186,16 +194,15 @@ function! HeadlineDelimiterExpression(lnum)
     endif
     return (getline(a:lnum)=~"^\\s*==.*==\\s*$") ? ">1" : "="
 endfunction
-autocmd BufReadPost,FileReadPost   .auth.bfa set foldexpr=HeadlineDelimiterExpression(v:lnum)
-autocmd BufReadPost,FileReadPost   .auth.bfa set foldlevel=0
-autocmd BufReadPost,FileReadPost   .auth.bfa set foldcolumn=0
-autocmd BufReadPost,FileReadPost   .auth.bfa set foldmethod=expr
-autocmd BufReadPost,FileReadPost   .auth.bfa set foldtext=getline(v:foldstart)
-autocmd BufReadPost,FileReadPost   .auth.bfa nnoremap <silent><space> :exe 'silent! normal! za'.(foldlevel('.')?'':'l')<CR>
-autocmd BufReadPost,FileReadPost   .auth.bfa nnoremap <silent>q :q<CR>
-autocmd BufReadPost,FileReadPost   .auth.bfa highlight Folded ctermbg=red ctermfg=black
-autocmd BufReadPost,FileReadPost   .auth.bfa set updatetime=300000
-autocmd CursorHold                 .auth.bfa quit
+autocmd BufReadPost,FileReadPost   *.aesa,.auth.bfa set foldexpr=HeadlineDelimiterExpression(v:lnum)
+autocmd BufReadPost,FileReadPost   *.aesa,.auth.bfa set foldlevel=0
+autocmd BufReadPost,FileReadPost   *.aesa,.auth.bfa set foldcolumn=0
+autocmd BufReadPost,FileReadPost   *.aesa,.auth.bfa set foldmethod=expr
+autocmd BufReadPost,FileReadPost   *.aesa,.auth.bfa set foldtext=getline(v:foldstart)
+autocmd BufReadPost,FileReadPost   *.aesa,.auth.bfa nnoremap <silent><space> :exe 'silent! normal! za'.(foldlevel('.')?'':'l')<CR>
+autocmd BufReadPost,FileReadPost   *.aesa,.auth.bfa nnoremap <silent>q :q<CR>
+autocmd BufReadPost,FileReadPost   *.aesa,.auth.bfa highlight Folded ctermbg=darkgrey ctermfg=green
+autocmd BufReadPost,FileReadPost   *.aesa,.auth.bfa set updatetime=300000
+autocmd CursorHold                 *.aesa,.auth.bfa quit
 
 augroup END
-
